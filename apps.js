@@ -42,13 +42,4 @@ const APPS = [
     keywords: "방탈출 통일 북한 이해 이산가족 북한이탈주민 평화 중3 게임",
   },
 
-  {
-    title: "예시 앱: 모둠 뽑기",
-    category: "class",
-    tag: "예시 · 학급 운영",
-    url: "#",
-    image: "",
-    date: "2026-11-19",
-    keywords: "모둠 랜덤 뽑기 자리",
-  },
 ];
