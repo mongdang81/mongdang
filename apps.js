@@ -9,6 +9,7 @@ const SITE = {
   name: "OO쌤의 웹앱 아카이브",          // 사이트 이름 (나중에 바꾸세요)
   logo: "웹",                             // 왼쪽 위 네모 안 글자 (한 글자 추천)
   eyebrow: "도덕 수업 · 학급 운영 웹앱",   // 제목 위 작은 글씨
+  url: "https://mongdang.jjunforyou.workers.dev",  // 사이트 주소 (QR 코드 아래에 표시)
   intro: "수업과 학급 운영에 바로 쓰는 웹앱을 나눕니다. 둘러보는 데 로그인은 필요 없어요.",
 };
 

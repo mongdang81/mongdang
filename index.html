@@ -16,7 +16,13 @@
         <span class="brand-mark" id="brandMark">웹</span>
         <span class="brand-name" id="brandName">웹앱 아카이브</span>
       </a>
-      <nav class="nav" id="nav"></nav>
+      <div class="topbar-right">
+        <nav class="nav" id="nav"></nav>
+        <button class="qr-btn" id="qrBtn" type="button" aria-label="휴대폰으로 접속하는 QR 코드 크게 보기">
+          <img src="images/qr.svg" alt="" width="40" height="40" />
+          <span>QR<br />접속</span>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -87,6 +93,16 @@
   </section>
 
   <footer class="footer"><div class="wrap" id="footer"></div></footer>
+
+  <div class="qr-modal" id="qrModal" hidden>
+    <div class="qr-card" role="dialog" aria-modal="true" aria-labelledby="qrTitle">
+      <button class="qr-close" id="qrClose" type="button" aria-label="닫기">×</button>
+      <h2 id="qrTitle">휴대폰으로 바로 접속</h2>
+      <p>카메라 앱으로 QR 코드를 비춰 보세요.</p>
+      <img src="images/qr.svg" alt="사이트 접속 QR 코드" />
+      <p class="qr-url" id="qrUrl"></p>
+    </div>
+  </div>
 
   <script src="apps.js"></script>
   <script src="main.js"></script>

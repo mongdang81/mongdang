@@ -15,6 +15,16 @@
   $("footer").textContent = "© " + new Date().getFullYear() + " " + SITE.name;
   $("searchInput").value = query;
 
+  // QR 코드 크게 보기
+  const modal = $("qrModal");
+  $("qrUrl").textContent = (SITE.url || location.origin).replace(/^https?:\/\//, "");
+  const openQr = () => { modal.hidden = false; $("qrClose").focus(); };
+  const closeQr = () => { modal.hidden = true; $("qrBtn").focus(); };
+  $("qrBtn").addEventListener("click", openQr);
+  $("qrClose").addEventListener("click", closeQr);
+  modal.addEventListener("click", (e) => { if (e.target === modal) closeQr(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !modal.hidden) closeQr(); });
+
   // 메뉴
   const nav = $("nav");
   CATEGORIES.forEach((c) => nav.appendChild(link("?cat=" + c.id, c.name, c.id === catParam)));
