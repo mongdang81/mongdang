@@ -33,6 +33,16 @@ const APPS = [
   ------------------------------------------------------------------------------------- */
 
   {
+    title: "끊어진 철길, 평화역의 마지막 열차",
+    category: "subject",
+    tag: "도덕 · 북한 이해와 통일",
+    url: "games/peace-station/",
+    image: "images/peace-station.png",
+    date: "2026-11-21",
+    keywords: "방탈출 통일 북한 이해 이산가족 북한이탈주민 평화 중3 게임",
+  },
+
+  {
     title: "예시 앱: 퀴즈 타임",
     category: "subject",
     tag: "예시 · 수업 도입",
