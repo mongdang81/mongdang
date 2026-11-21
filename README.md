@@ -21,7 +21,7 @@
 ```js
   {
     title: "앱 이름",
-    category: "subject",          // subject = 교과 수업용, class = 학급관리용
+    category: "subject",          // subject = 도덕교과 수업용, class = 학급관리용
     tag: "과목 · 단원",
     url: "https://내-앱-주소",
     image: "images/파일이름.png",  // 이미지가 없으면 "" (자동 표지가 생겨요)

@@ -8,13 +8,13 @@
 const SITE = {
   name: "OO쌤의 웹앱 아카이브",          // 사이트 이름 (나중에 바꾸세요)
   logo: "웹",                             // 왼쪽 위 네모 안 글자 (한 글자 추천)
-  eyebrow: "교과 수업 · 학급 운영 웹앱",   // 제목 위 작은 글씨
+  eyebrow: "도덕 수업 · 학급 운영 웹앱",   // 제목 위 작은 글씨
   intro: "수업과 학급 운영에 바로 쓰는 웹앱을 나눕니다. 둘러보는 데 로그인은 필요 없어요.",
 };
 
 const CATEGORIES = [
   // id: 영어 이름(바꾸지 않는 것이 좋아요), name: 화면에 보이는 이름, slots: 첫 화면 칸 수
-  { id: "subject", name: "교과 수업용 웹앱", slots: 6 },
+  { id: "subject", name: "도덕교과 수업용 웹앱", slots: 6 },
   { id: "class",   name: "학급관리용 웹앱",  slots: 6 },
 ];
 
@@ -23,7 +23,7 @@ const APPS = [
   {
     title: "앱 이름",
     category: "subject",            // 위 CATEGORIES 의 id 중 하나
-    tag: "과목 · 단원",              // 카드 위 작은 초록 글씨
+    tag: "도덕 · 단원",              // 카드 위 작은 초록 글씨
     url: "https://내-앱-주소",       // 카드를 누르면 열릴 주소
     image: "images/파일이름.png",    // 썸네일 (없으면 "" 로 두면 자동 표지가 생겨요)
     date: "2026-11-21",             // 올린 날짜 (최신순 정렬에 쓰여요)
