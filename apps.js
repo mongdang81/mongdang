@@ -43,24 +43,6 @@ const APPS = [
   },
 
   {
-    title: "예시 앱: 퀴즈 타임",
-    category: "subject",
-    tag: "예시 · 수업 도입",
-    url: "#",
-    image: "",
-    date: "2026-11-20",
-    keywords: "퀴즈 복습 형성평가",
-  },
-  {
-    title: "예시 앱: 개념 카드 뒤집기",
-    category: "subject",
-    tag: "예시 · 개념 정리",
-    url: "#",
-    image: "",
-    date: "2026-11-18",
-    keywords: "개념 암기 카드",
-  },
-  {
     title: "예시 앱: 모둠 뽑기",
     category: "class",
     tag: "예시 · 학급 운영",
