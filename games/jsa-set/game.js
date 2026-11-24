@@ -103,6 +103,7 @@
   let stopLoop = null;
   function render() {
     if (stopLoop) { stopLoop(); stopLoop = null; }
+    if (Music.playing) Music.want(false);
     $$('.gl-pop').forEach((p) => p.remove());
     const { path, q } = route();
     if (path.startsWith('/teacher')) return teacherScreen();
@@ -113,6 +114,72 @@
     return exploreScreen();
   }
   addEventListener('hashchange', render);
+
+  // ---------- 배경 음악 (파일 없이 브라우저에서 직접 연주하는 짧은 반복곡) ----------
+  // 낮게 깔리는 소리 + 심장 박동 같은 베이스 + 가끔 울리는 오르골 선율. 학생이 HUD의 음악 버튼으로 끌 수 있어요.
+  const MUSIC_KEY = 'jsa-set-music-v1';
+  const Music = {
+    on: load(MUSIC_KEY, { on: true }).on,
+    ctx: null, master: null, timer: 0, step: 0, next: 0,
+    ensure() {
+      if (this.ctx) return true;
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return false;
+      this.ctx = new AC();
+      this.master = this.ctx.createGain(); this.master.gain.value = 0;
+      const comp = this.ctx.createDynamicsCompressor();
+      this.master.connect(comp); comp.connect(this.ctx.destination);
+      // 낮은 깔림 소리: 라(A) 와 미(E), 천천히 숨 쉬는 필터
+      const lp = this.ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420; lp.connect(this.master);
+      const lfo = this.ctx.createOscillator(); const lg = this.ctx.createGain(); lfo.frequency.value = 0.07; lg.gain.value = 180; lfo.connect(lg); lg.connect(lp.frequency); lfo.start();
+      [[55, 'sawtooth', 0.05], [82.41, 'sawtooth', 0.035], [110, 'triangle', 0.05]].forEach(([f, type, v]) => {
+        const o = this.ctx.createOscillator(); o.type = type; o.frequency.value = f; o.detune.value = Math.random() * 8 - 4;
+        const g = this.ctx.createGain(); g.gain.value = v; o.connect(g); g.connect(lp); o.start();
+      });
+      // 오르골에 쓰는 메아리
+      this.echo = this.ctx.createDelay(); this.echo.delayTime.value = 0.42;
+      const fb = this.ctx.createGain(); fb.gain.value = 0.35;
+      this.echo.connect(fb); fb.connect(this.echo); this.echo.connect(this.master);
+      return true;
+    },
+    note(t, f, dur, type, vol, echo) {
+      const o = this.ctx.createOscillator(); o.type = type; o.frequency.value = f;
+      const g = this.ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(this.master); if (echo) g.connect(this.echo);
+      o.start(t); o.stop(t + dur + 0.05);
+    },
+    // 72 BPM, 라단조 화음 4개(Am - F - C - G)를 8박씩
+    BASS: [55, 43.65, 65.41, 49],
+    MEL: [[440, 523.25, 659.25, 587.33], [349.23, 440, 523.25, 440], [392, 523.25, 659.25, 783.99], [392, 493.88, 587.33, 493.88]],
+    schedule() {
+      const beat = 60 / 72;
+      while (this.next < this.ctx.currentTime + 0.3) {
+        const t = this.next, st = this.step, chord = Math.floor(st / 8) % 4, b = st % 8;
+        if (b % 2 === 0) { this.note(t, this.BASS[chord], 0.5, 'sine', 0.22); this.note(t + 0.18, this.BASS[chord], 0.35, 'sine', 0.12); }
+        if ((st % 32) >= 16 && (b === 0 || b === 3 || b === 5)) this.note(t, this.MEL[chord][(b + st) % 4], 1.4, 'triangle', 0.06, true);
+        this.step++; this.next += beat;
+      }
+    },
+    play() {
+      if (!this.on || !this.ensure()) return;
+      const c = this.ctx;
+      c.resume();
+      if (!this.timer) { this.next = c.currentTime + 0.1; this.timer = setInterval(() => this.schedule(), 100); }
+      this.master.gain.cancelScheduledValues(c.currentTime); this.master.gain.setTargetAtTime(0.5, c.currentTime, 0.8);
+    },
+    stop() {
+      if (!this.ctx) return;
+      const c = this.ctx;
+      this.master.gain.cancelScheduledValues(c.currentTime); this.master.gain.setTargetAtTime(0, c.currentTime, 0.2);
+      setTimeout(() => { if (!this.on || !this.playing) { clearInterval(this.timer); this.timer = 0; c.suspend(); } }, 700);
+    },
+    playing: false,
+    want(play) { this.playing = play; if (play && this.on) this.play(); else this.stop(); },
+    toggle() { this.on = !this.on; store(MUSIC_KEY, { on: this.on }); this.want(this.playing); return this.on; },
+  };
+  // 새로고침 뒤에는 첫 터치·키 입력에서 음악을 다시 켜요(브라우저가 소리 자동 재생을 막기 때문)
+  ['pointerdown', 'keydown'].forEach((ev) => addEventListener(ev, () => { if (Music.playing && Music.on && (!Music.ctx || Music.ctx.state !== 'running')) Music.play(); }));
+  const musicLabel = () => (Music.on ? '🔊 음악' : '🔇 음악');
 
   // ---------- 여는 장면 (주소를 열 때마다 한 번, 건너뛸 수 있어요) ----------
   let openingSeen = false;
@@ -223,6 +290,7 @@
           <button class="btn big" id="start">세트장으로 들어가기</button>
         </div></div>`;
         $('#start').onclick = () => {
+          Music.want(true);
           game.startedAt = Date.now();
           game.endAt = Date.now() + game.minutes * 60000;
           save();
@@ -362,7 +430,7 @@
           <div class="hud-r">
             <span class="lives" id="lives"></span>
             <span class="keys" id="keys"></span>
-            <button class="btn small ghost" id="map">지도</button><button class="btn small" id="note">수첩</button>
+            <button class="btn small ghost" id="bgm" aria-label="배경 음악 켜고 끄기">${musicLabel()}</button><button class="btn small ghost" id="map">지도</button><button class="btn small" id="note">수첩</button>
           </div>
         </div>
         <div class="stage" id="stage"><canvas id="cv"></canvas>
@@ -434,6 +502,8 @@
     $('#act').onclick = interact;
     $('#note').onclick = () => openNotebook();
     $('#map').onclick = () => openMap();
+    $('#bgm').onclick = () => { Music.toggle(); $('#bgm').textContent = musicLabel(); toast(Music.on ? '배경 음악을 켰어요.' : '배경 음악을 껐어요.'); };
+    Music.want(true);
 
     function interactables() {
       const list = [];
