@@ -33,6 +33,16 @@ const APPS = [
   ------------------------------------------------------------------------------------- */
 
   {
+    title: "JSA 세트장의 마지막 밤",
+    category: "subject",
+    tag: "도덕 · 영화로 만나는 통일",
+    url: "games/jsa-set/",
+    image: "images/jsa-set.png",
+    date: "2026-11-24",
+    keywords: "방탈출 통일 공동경비구역 JSA 영화 판문점 분단 평화 중3 게임 45분",
+  },
+
+  {
     title: "끊어진 철길, 평화역의 마지막 열차",
     category: "subject",
     tag: "도덕 · 북한 이해와 통일",
