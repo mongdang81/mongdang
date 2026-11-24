@@ -106,12 +106,42 @@
     $$('.gl-pop').forEach((p) => p.remove());
     const { path, q } = route();
     if (path.startsWith('/teacher')) return teacherScreen();
+    if (!openingSeen && G.OPENING && !game.startedAt) return openingScreen();
     if (!game.codename) return joinScreen(q);
     if (!game.startedAt) return introScreen();
     if (game.outcome) return endScreen();
     return exploreScreen();
   }
   addEventListener('hashchange', render);
+
+  // ---------- 여는 장면 (주소를 열 때마다 한 번, 건너뛸 수 있어요) ----------
+  let openingSeen = false;
+  function openingScreen() {
+    const scenes = G.OPENING;
+    let i = -1, timer = 0;
+    app.innerHTML = `<div class="opening"><div class="op-bg" style="background-image:url(${art('entry_bg')})"></div>
+      <div class="op-film top"></div><div class="op-film bot"></div>
+      <div class="op-scene" id="sc"></div>
+      <div class="op-bar"><button class="btn small" id="nx">다음 ▶</button><button class="btn small ghost" id="skip">건너뛰기</button></div></div>`;
+    const done = () => { clearTimeout(timer); openingSeen = true; render(); };
+    const next = () => {
+      clearTimeout(timer);
+      i++;
+      if (i >= scenes.length) return done();
+      const sc = $('#sc');
+      if (!sc) return;
+      sc.classList.remove('on');
+      setTimeout(() => {
+        const s = scenes[i];
+        sc.innerHTML = `${s.small ? `<small>${esc(s.small)}</small>` : ''}${esc(s.text).replace(/\n/g, '<br>')}`;
+        sc.classList.add('on');
+      }, i === 0 ? 50 : 700);
+      timer = setTimeout(next, (scenes[i].sec || 4.5) * 1000);
+    };
+    $('#skip').onclick = done;
+    $('#nx').onclick = next;
+    next();
+  }
 
   // ---------- 입장 ----------
   function newCodename() { return `견습 스태프 ${10 + Math.floor(Math.random() * 90)}호`; }
@@ -327,12 +357,12 @@
     app.innerHTML = `
       <div class="explore">
         <div class="hud">
-          <div class="hud-l"><img src="${art('av_' + game.avatar)}" alt=""><span>${esc(game.codename)}</span></div>
+          <div class="hud-l"><img src="${art('av_' + game.avatar)}" alt=""><div class="hud-who"><span>${esc(game.codename)}</span><small id="room"></small></div></div>
           <div class="hud-c"><span class="timer" id="timer">--:--</span></div>
           <div class="hud-r">
             <span class="lives" id="lives"></span>
             <span class="keys" id="keys"></span>
-            <button class="btn small" id="note">수첩</button>
+            <button class="btn small ghost" id="map">지도</button><button class="btn small" id="note">수첩</button>
           </div>
         </div>
         <div class="stage" id="stage"><canvas id="cv"></canvas>
@@ -348,13 +378,21 @@
     const cv = $('#cv'), ctx = cv.getContext('2d'), stage = $('#stage');
     const bg = drawStatic();
     const W = G.WORLD.w, H = G.WORLD.h;
-    let scale = 1, dpr = 1;
+    // 카메라: 화면이 크면 지도 전체, 작으면 조금 확대해 학생을 따라가요
+    let scale = 1, dpr = 1, vw = 0, vh = 0, camX = 0, camY = 0;
     function fit() {
       const r = stage.getBoundingClientRect();
-      scale = Math.min(r.width / W, r.height / H);
+      vw = r.width; vh = r.height;
+      const whole = Math.min(vw / W, vh / H);
+      scale = Math.max(whole, Math.min(1.5, Math.max(vw / 1100, vh / 640)));
       dpr = window.devicePixelRatio || 1;
-      cv.style.width = W * scale + 'px'; cv.style.height = H * scale + 'px';
-      cv.width = Math.round(W * scale * dpr); cv.height = Math.round(H * scale * dpr);
+      cv.style.width = vw + 'px'; cv.style.height = vh + 'px';
+      cv.width = Math.round(vw * dpr); cv.height = Math.round(vh * dpr);
+    }
+    function camera() {
+      const p = game.pos;
+      camX = W * scale <= vw ? (vw - W * scale) / 2 : -Math.max(0, Math.min(W * scale - vw, p.x * scale - vw / 2));
+      camY = H * scale <= vh ? (vh - H * scale) / 2 : -Math.max(0, Math.min(H * scale - vh, p.y * scale - vh / 2));
     }
     fit();
     addEventListener('resize', fit);
@@ -363,6 +401,13 @@
     const robots = G.ROBOT_PATHS.slice(0, Math.max(0, Math.min(3, cfg.robots))).map((p) => ({
       path: p.loop, i: 0, x: p.loop[0].x, y: p.loop[0].y, dir: 0, wait: 0, scanBase: 0, t: 0,
     }));
+    // 자물쇠를 3번 틀리면 가장 가까운 문에서 출동하는 로봇
+    const DOORS = [{ x: 310, y: 445 }, { x: 800, y: 445 }, { x: 1290, y: 445 }, { x: 310, y: 540 }, { x: 800, y: 540 }];
+    let chaser = null;
+    function sendChaser() {
+      const d = DOORS.reduce((a, b) => (Math.hypot(b.x - game.pos.x, b.y - game.pos.y) < Math.hypot(a.x - game.pos.x, a.y - game.pos.y) ? b : a));
+      chaser = { x: d.x, y: d.y, dir: 0, until: Date.now() + 9000, chase: true };
+    }
     let alertUntil = 0, invulnUntil = Date.now() + 1500, paused = false, lastT = performance.now(), raf = 0;
     const keysDown = new Set();
     const padDown = new Set();
@@ -384,10 +429,11 @@
     });
     cv.addEventListener('pointerdown', (e) => {
       const r = cv.getBoundingClientRect();
-      target = { x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale };
+      target = { x: (e.clientX - r.left - camX) / scale, y: (e.clientY - r.top - camY) / scale };
     });
     $('#act').onclick = interact;
     $('#note').onclick = () => openNotebook();
+    $('#map').onclick = () => openMap();
 
     function interactables() {
       const list = [];
@@ -470,8 +516,9 @@
           if (st.lockWrong >= S.lockWrongLimit) {
             st.lockWrong = 0; save();
             alertUntil = Date.now() + 12000;
+            sendChaser();
             closeModal();
-            toast('삐빅! 경비 로봇이 소리를 듣고 빨라졌어요. 잠시 그림자에 숨으세요!', 3600);
+            toast('삐빅! 소리를 들은 경비 로봇이 달려와요. 그림자에 숨으세요!', 3600);
           } else {
             save();
             $('#msg').textContent = `번호가 맞지 않아요. 틀린 횟수 ${st.lockWrong} / ${S.lockWrongLimit}`;
@@ -655,6 +702,28 @@
       };
     }
 
+    function seekTarget() {
+      const nextBox = G.BOXES.find((b) => !(game.boxes[b.id] && game.boxes[b.id].opened));
+      if (nextBox) return nextBox;
+      if (keysCount() === G.BOXES.length && !game.vault.open) return Object.assign({ id: 'vault' }, G.VAULT);
+      return null;
+    }
+
+    // ----- 지도 -----
+    function openMap() {
+      const pct = (v, m) => `${(v / m) * 100}%`;
+      const seek = seekTarget();
+      const body = openModal(`<div class="minimap"><h3>세트장 지도</h3>
+        <div class="mini-wrap"><img src="${bg.toDataURL('image/png')}" alt="세트장 지도">
+          ${G.BOXES.filter((b) => game.boxes[b.id] && game.boxes[b.id].found).map((b) => `<span class="mini-box ${game.boxes[b.id].keyAt ? 'done' : ''}" style="left:${pct(b.at.x, W)};top:${pct(b.at.y, H)};border-color:${b.color}">${b.no}</span>`).join('')}
+          ${seek && (game.findHints[seek.id] || 0) >= 1 ? `<span class="mini-seek" style="left:${pct(seek.at.x, W)};top:${pct(seek.at.y, H)}"></span>` : ''}
+          <span class="mini-me" style="left:${pct(game.pos.x, W)};top:${pct(game.pos.y, H)}"></span>
+        </div>
+        <p class="tiny">노란 점이 나, 숫자는 찾은 상자예요. 수첩에서 길 찾기 힌트를 보면 갈 곳이 반짝여요.</p>
+        <button class="btn" id="ok">닫기</button></div>`, 'wide');
+      $('#ok', body).onclick = closeModal;
+    }
+
     // ----- 수첩 -----
     function openNotebook() {
       const clues = G.CLUES.filter((c) => game.cluesRead.includes(c.id));
@@ -781,10 +850,27 @@
             r.dir += angDiff(want, r.dir) * Math.min(1, dt * 8);
           }
         });
+        // 출동한 로봇: 그림자 밖에 있으면 학생 쪽으로, 숨으면 두리번거려요
+        if (chaser) {
+          if (nowMs > chaser.until) chaser = null;
+          else if (!inShadow(game.pos.x, game.pos.y)) {
+            const tx = game.pos.x - chaser.x, ty = game.pos.y - chaser.y, d = Math.hypot(tx, ty) || 1;
+            const sp = 95 * (cfg.speed || 1) * dt;
+            const nx = chaser.x + (tx / d) * sp, ny = chaser.y + (ty / d) * sp;
+            if (walkable(nx, chaser.y)) chaser.x = nx;
+            if (walkable(chaser.x, ny)) chaser.y = ny;
+            chaser.dir += angDiff(Math.atan2(ty, tx), chaser.dir) * Math.min(1, dt * 8);
+          } else chaser.dir += dt * 2;
+        }
+        // 상자 발견: 가까이 가면 수첩에 적혀요
+        G.BOXES.forEach((b) => {
+          const st = boxState(b.id);
+          if (!st.found && Math.hypot(b.at.x - game.pos.x, b.at.y - game.pos.y) < 78) { st.found = true; game.lastFindAt = nowMs; save(); toast(`소품 상자를 찾았어요! (${b.name})`); }
+        });
         // 들킴 판정
         if (nowMs > invulnUntil) {
           const range = RANGE * (alert ? 1.3 : 1);
-          for (const r of robots) {
+          for (const r of (chaser ? robots.concat([chaser]) : robots)) {
             const d = Math.hypot(game.pos.x - r.x, game.pos.y - r.y);
             if (d < 30) { caught('로봇과 부딪혔어요!'); break; }
             if (d < range && !inShadow(game.pos.x, game.pos.y)) {
@@ -803,7 +889,10 @@
       if (near) act.textContent = near.kind === 'clue' ? '살펴보기' : near.kind === 'box' ? '상자 열기' : '보관실 문 살펴보기';
 
       // 그리기
-      ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
+      camera();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = '#0d1528'; ctx.fillRect(0, 0, cv.width, cv.height);
+      ctx.setTransform(scale * dpr, 0, 0, scale * dpr, camX * dpr, camY * dpr);
       ctx.drawImage(bg, 0, 0);
       const pulse = 0.5 + 0.5 * Math.sin(now / 300);
       // 단서 소품
@@ -827,16 +916,18 @@
       // 보관실 문 반짝임 (열쇠 4개)
       if (keysCount() === G.BOXES.length) { ctx.strokeStyle = `rgba(255,217,138,${0.4 + 0.5 * pulse})`; ctx.lineWidth = 4; ctx.strokeRect(G.VAULT.at.x - 40, 516, 80, 48); }
       // 탐조등
-      robots.forEach((r) => {
-        const pts = cone(r, RANGE * (alert ? 1.3 : 1));
+      const watchers = chaser ? robots.concat([chaser]) : robots;
+      watchers.forEach((r) => {
+        const pts = cone(r, RANGE * (alert || r.chase ? 1.3 : 1));
         const grad = ctx.createRadialGradient(r.x, r.y, 10, r.x, r.y, RANGE * 1.3);
-        grad.addColorStop(0, alert ? 'rgba(255,120,90,.55)' : 'rgba(255,225,120,.5)');
-        grad.addColorStop(1, alert ? 'rgba(255,120,90,0)' : 'rgba(255,225,120,0)');
+        const hot = alert || r.chase;
+        grad.addColorStop(0, hot ? 'rgba(255,120,90,.55)' : 'rgba(255,225,120,.5)');
+        grad.addColorStop(1, hot ? 'rgba(255,120,90,0)' : 'rgba(255,225,120,0)');
         ctx.fillStyle = grad;
         ctx.beginPath(); ctx.moveTo(r.x, r.y); pts.forEach(([x, y]) => ctx.lineTo(x, y)); ctx.closePath(); ctx.fill();
       });
       // 사람과 로봇 (아래쪽이 앞에 오도록)
-      const ents = robots.map((r) => ({ y: r.y, draw: () => ctx.drawImage(img('robot'), r.x - 26, r.y - 40, 52, 52) }));
+      const ents = watchers.map((r) => ({ y: r.y, draw: () => ctx.drawImage(img('robot'), r.x - 26, r.y - 40, 52, 52) }));
       ents.push({ y: game.pos.y, draw: () => {
         const blink = nowMs < invulnUntil && Math.floor(now / 120) % 2;
         ctx.globalAlpha = blink ? 0.35 : inShadow(game.pos.x, game.pos.y) ? 0.6 : 1;
@@ -847,6 +938,19 @@
       ents.sort((a, b) => a.y - b.y).forEach((e) => e.draw());
       if (near) { ctx.strokeStyle = '#ffd98a'; ctx.lineWidth = 3; ctx.setLineDash([6, 5]); ctx.beginPath(); ctx.arc(near.at.x, near.at.y, 32, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
       if (target) { ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(target.x, target.y, 8, 0, 7); ctx.stroke(); }
+      // 길 찾기 힌트를 2단계 넘게 보면 갈 곳을 가리키는 화살표
+      const seek = seekTarget();
+      if (seek && (game.findHints[seek.id] || 0) >= 2 && Math.hypot(seek.at.x - game.pos.x, seek.at.y - game.pos.y) > 90) {
+        const a = Math.atan2(seek.at.y - game.pos.y, seek.at.x - game.pos.x);
+        ctx.save(); ctx.translate(game.pos.x + Math.cos(a) * 48, game.pos.y - 18 + Math.sin(a) * 48); ctx.rotate(a);
+        ctx.fillStyle = `rgba(255,217,138,${0.6 + 0.4 * pulse})`; ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-8, -10); ctx.lineTo(-3, 0); ctx.lineTo(-8, 10); ctx.closePath(); ctx.fill(); ctx.restore();
+      }
+      // 지금 있는 곳
+      const room = G.ROOMS.find((r) => inRect(game.pos.x, game.pos.y, r));
+      const roomText = (room ? room.name : '복도') + (inShadow(game.pos.x, game.pos.y) ? ' · 그림자 속에 숨었어요' : '');
+      if ($('#room').textContent !== roomText) $('#room').textContent = roomText;
+      const stuck = seek && nowMs - (game.lastFindAt || game.startedAt) > 3 * 60000 && (game.findHints[seek.id] || 0) < 2;
+      $('#note').classList.toggle('pulse', !!stuck);
     }
     raf = requestAnimationFrame(tick);
     stopLoop = () => {
