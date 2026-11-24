@@ -283,3 +283,6 @@ code { background: #fff3d0; padding: 1px 6px; border-radius: 6px; font-weight: 7
 .opening .op-bar .btn.ghost { color: var(--cream); box-shadow: inset 0 0 0 2px #55688f; }
 .opening .op-film { position: absolute; left: 0; right: 0; height: 34px; background: repeating-linear-gradient(90deg, #1b1416 0 22px, #fbf5e6 22px 40px, #1b1416 40px 62px); background-size: 62px 14px; background-repeat: repeat-x; background-position: 0 10px; background-color: #1b1416; opacity: .8; }
 .opening .op-film.top { top: 0; } .opening .op-film.bot { bottom: 0; }
+
+/* Canva 장면 그림 */
+.card .card-img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; margin: 6px 0 8px; background: #0d1626; }
