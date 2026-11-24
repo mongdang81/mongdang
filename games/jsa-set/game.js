@@ -64,7 +64,8 @@
     if (n > 1 && a.every((v, i) => v === i)) a.push(a.shift());
     return a;
   }
-  const art = (name) => `art/${name}.svg`;
+  const PHOTOS = new Set(['entry_bg', 'ending', 'scene_mine', 'scene_post', 'scene_shot', 'scene_report', 'scene_talk', 'card_bridge']);
+  const art = (name) => `art/${name}.${PHOTOS.has(name) ? 'jpg' : 'svg'}`;
 
   // 낱말 풀이 말풍선
   document.addEventListener('click', (e) => {
@@ -599,7 +600,7 @@
 
     function cardHtml(c) {
       return `<div class="card ${c.kind}"><div class="card-kind">${{ doc: '문서', scene: '영화 장면', photo: '사진', telegram: '소식', letter: '편지' }[c.kind] || ''}</div>
-        <h4>${esc(c.title)}</h4><p>${T(c.body)}</p>${c.cite ? `<p class="cite">${esc(c.cite)}</p>` : ''}${c.note ? `<p class="cite">${esc(c.note)}</p>` : ''}</div>`;
+        ${c.img ? `<img class="card-img" src="${art(c.img)}" alt="" loading="lazy">` : ''}<h4>${esc(c.title)}</h4><p>${T(c.body)}</p>${c.cite ? `<p class="cite">${esc(c.cite)}</p>` : ''}${c.note ? `<p class="cite">${esc(c.note)}</p>` : ''}</div>`;
     }
 
     function boxView(b, quizId, showKey) {
